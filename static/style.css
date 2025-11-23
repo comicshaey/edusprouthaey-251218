@@ -173,3 +173,30 @@ main {
 .site-footer p {
   margin: 4px 0;
 }
+
+
+/* 메인으로 돌아가기 / 부서별 목록으로 돌아가기 버튼 래퍼 */
+.home-link-wrap{
+  margin-top:16px;
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;   /* 모바일에서 줄바꿈 자연스럽게 */
+}
+
+/* 메인/부서별 공통 버튼 스타일 */
+.btn-home{
+  display:inline-block;
+  padding:8px 16px;
+  border:1px solid #d1d5db;
+  border-radius:999px;   /* 둥근 직사각형 버튼 */
+  background:#f9fafb;
+  font-size:0.9rem;
+  line-height:1.4;
+  text-decoration:none;
+}
+
+.btn-home:hover{
+  background:#eef2ff;
+}
+
