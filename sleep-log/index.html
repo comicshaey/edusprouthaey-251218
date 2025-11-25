@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>수면일지 막대그래프 달력</title>
+
+  <!-- 공통 스타일 -->
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <style>
+    /* ==== 수면일지 전용 스타일 ==== */
+
+    .sleep-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px 16px;
+      margin-top: 12px;
+      align-items: flex-end;
+    }
+
+    .sleep-controls .field-label {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+      color: #444;
+    }
+
+    .sleep-type-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      font-size: 0.9rem;
+    }
+
+    .sleep-type-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .sleep-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      font-size: 0.8rem;
+      margin-top: 10px;
+      color: #444;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid #d4d4d8;
+    }
+
+    .legend-night { background: rgba(37, 99, 235, 0.28); }
+    .legend-awake { background: rgba(234, 179, 8, 0.45); }
+    .legend-nap { background: rgba(52, 211, 153, 0.45); }
+
+    .legend-pill-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-pill {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #dc2626;
+      border: 1px solid #991b1b;
+    }
+
+    /* ==== 테이블 레이아웃 ==== */
+
+    .sleep-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+
+    .sleep-table th,
+    .sleep-table td {
+      border: 1px solid #e5e7eb;
+      padding: 3px;
+    }
+
+    .sleep-table thead th {
+      background: #f9fafb;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .sleep-table th.date-col {
+      width: 80px;
+      min-width: 80px;
+    }
+
+    .sleep-cell {
+      height: 22px;
+      background: #ffffff;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .sleep-cell:hover {
+      outline: 1px solid rgba(148, 163, 184, 0.8);
+      outline-offset: -1px;
+    }
+
+    .sleep-night {
+      background: rgba(37, 99, 235, 0.28);  /* 밤 수면 */
+    }
+
+    .sleep-awake {
+      background: rgba(234, 179, 8, 0.45);   /* 자다 깸 / 깨어있음 */
+    }
+
+    .sleep-nap {
+      background: rgba(52, 211, 153, 0.45);  /* 낮잠 */
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #dc2626;
+      border: 1px solid #991b1b;
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+    }
+
+    .sleep-help {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    @media (max-width: 640px) {
+      .sleep-table th.date-col {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #f9fafb;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell">
+      <h1>수면일지 막대그래프 달력</h1>
+      <p class="sub">
+        · 한 칸 = 1시간, 기준일 정오(12시) ~ 다음날 정오(12시)까지 표시<br/>
+        · 밤 수면 / 깨어있음 / 낮잠 / 약 복용 시간을 색으로 기록
+      </p>
+    </div>
+  </header>
+
+  <main>
+    <div class="shell">
+      <section class="section">
+        <h2>기록 입력</h2>
+
+        <div class="sleep-controls">
+          <div>
+            <div class="field-label">기준 날짜</div>
+            <input type="date" id="date-input" />
+          </div>
+
+          <div>
+            <div class="field-label">시작 시간</div>
+            <input type="time" id="start-time" />
+          </div>
+
+          <div>
+            <div class="field-label">끝 시간 (약 복용은 비워둬도 됨)</div>
+            <input type="time" id="end-time" />
+          </div>
+
+          <div>
+            <div class="field-label">기록 종류</div>
+            <div class="sleep-type-group">
+              <label><input type="radio" name="segment-type" value="night" checked /> 밤 수면</label>
+              <label><input type="radio" name="segment-type" value="awake" /> 깨어있음</label>
+              <label><input type="radio" name="segment-type" value="nap" /> 낮잠</label>
+              <label><input type="radio" name="segment-type" value="med" /> 약 복용</label>
+            </div>
+          </div>
+
+          <div>
+            <button class="btn primary" id="add-btn" type="button">달력에 추가</button>
+          </div>
+        </div>
+
+        <div class="sleep-legend">
+          <span class="legend-chip">
+            <span class="legend-color legend-night"></span> 밤 수면
+          </span>
+          <span class="legend-chip">
+            <span class="legend-color legend-awake"></span> 깨어있음 / 중간에 깸
+          </span>
+          <span class="legend-chip">
+            <span class="legend-color legend-nap"></span> 낮잠
+          </span>
+          <span class="legend-pill-wrap">
+            <span class="legend-pill"></span> 약 복용 시간
+          </span>
+        </div>
+
+        <p class="sleep-help">
+          · 기준 날짜 한 줄이 <b>그날 정오 12시부터 다음날 정오 12시까지</b> 24시간을 의미함.<br/>
+          · 예: 2025-11-26 / 23:00~06:00 → 26일 줄의 오른쪽(밤)~다음날 새벽 칸까지 파란색으로 표시.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>수면 달력</h2>
+        <div class="table-wrap">
+          <table class="sleep-table" id="sleep-table">
+            <thead>
+              <tr id="sleep-header-row">
+                <th class="date-col">날짜</th>
+              </tr>
+            </thead>
+            <tbody id="sleep-body">
+              <!-- JS에서 날짜별 행 추가 -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // ===== 시간 슬롯 헤더 생성 =====
+
+    // 정오 기준 24시간: 12시 ~ 23시, 24시, 1시 ~ 11시
+    const SLOT_LABELS = [
+      "12시","13시","14시","15시","16시","17시","18시","19시",
+      "20시","21시","22시","23시","24시",
+      "1시","2시","3시","4시","5시","6시","7시","8시","9시","10시","11시"
+    ];
+
+    const headerRow = document.getElementById("sleep-header-row");
+    SLOT_LABELS.forEach(label => {
+      const th = document.createElement("th");
+      th.textContent = label;
+      headerRow.appendChild(th);
+    });
+
+    const tbody = document.getElementById("sleep-body");
+
+    // ===== 유틸리티 함수 =====
+
+    // 날짜 포맷: 2025-11-26 → 2025.11.26.
+    function formatDateLabel(dateStr) {
+      if (!dateStr) return "";
+      const parts = dateStr.split("-");
+      if (parts.length !== 3) return dateStr;
+      return parts[0] + "." + parts[1] + "." + parts[2] + ".";
+    }
+
+    // 24시간을 "정오 기준" 인덱스로 변환
+    // 12:00 → 0, 13:00 → 1, ..., 23:00 → 11, 00:00 → 12, 01:00 → 13, ..., 11:00 → 23
+    function timeToSlotIndex(timeStr) {
+      if (!timeStr) return null;
+      const [hStr, mStr] = timeStr.split(":");
+      let h = parseInt(hStr, 10);
+      let m = parseInt(mStr || "0", 10);
+
+      if (isNaN(h) || isNaN(m)) return null;
+
+      const t = h + m / 60; // 0~24
+      let offset = t - 12;
+      if (offset < 0) offset += 24; // 0~24
+      const index = Math.floor(offset); // 0~23
+      return index;
+    }
+
+    // tbody 안에서 해당 날짜의 행을 찾거나 새로 만듦
+    function getOrCreateRow(dateStr) {
+      let row = tbody.querySelector('tr[data-date="' + dateStr + '"]');
+      if (row) return row;
+
+      row = document.createElement("tr");
+      row.dataset.date = dateStr;
+
+      const dateCell = document.createElement("td");
+      dateCell.textContent = formatDateLabel(dateStr);
+      dateCell.classList.add("date-col");
+      row.appendChild(dateCell);
+
+      // 24시간 칸 생성
+      for (let i = 0; i < 24; i++) {
+        const td = document.createElement("td");
+        td.classList.add("sleep-cell");
+        td.dataset.slotIndex = String(i);
+        row.appendChild(td);
+      }
+
+      tbody.appendChild(row);
+      return row;
+    }
+
+    // 셀에 수면 타입 색깔 적용
+    function applyTypeToCell(cell, type) {
+      cell.classList.remove("sleep-night", "sleep-awake", "sleep-nap");
+      if (type === "night") cell.classList.add("sleep-night");
+      if (type === "awake") cell.classList.add("sleep-awake");
+      if (type === "nap") cell.classList.add("sleep-nap");
+    }
+
+    // 약 복용 점 찍기 (색은 유지)
+    function addPillDot(cell) {
+      if (cell.querySelector(".pill-dot")) return; // 같은 칸에 중복 생성 방지
+      const dot = document.createElement("span");
+      dot.className = "pill-dot";
+      cell.appendChild(dot);
+    }
+
+    // 구간(시작~끝)을 타입에 따라 칠하기
+    function fillRange(row, startTime, endTime, type) {
+      const startIndex = timeToSlotIndex(startTime);
+      const endIndexRaw = timeToSlotIndex(endTime);
+
+      if (startIndex === null || endIndexRaw === null) return;
+
+      // 끝 시간이 시작보다 앞이면 → 다음날 정오까지 넘어간 걸로 처리
+      let start = startIndex;
+      let end = endIndexRaw;
+      if (end <= start) {
+        end += 24;
+      }
+
+      for (let i = start; i < end; i++) {
+        if (i < 0 || i >= 24) continue;
+        const slot = i; // 0~23
+        const cell = row.querySelector('td[data-slot-index="' + slot + '"]');
+        if (!cell) continue;
+        applyTypeToCell(cell, type);
+      }
+    }
+
+    // ===== 버튼 이벤트 =====
+
+    document.getElementById("add-btn").addEventListener("click", function () {
+      const dateStr = document.getElementById("date-input").value;
+      const startTime = document.getElementById("start-time").value;
+      const endTime = document.getElementById("end-time").value;
+      const type = document.querySelector('input[name="segment-type"]:checked')?.value;
+
+      if (!dateStr) {
+        alert("기준 날짜를 입력해 주세요.");
+        return;
+      }
+      if (!startTime) {
+        alert("시작 시간을 입력해 주세요.");
+        return;
+      }
+
+      const row = getOrCreateRow(dateStr);
+
+      // 약 복용은 한 시각만 찍어서 점 표시
+      if (type === "med") {
+        const slotIndex = timeToSlotIndex(startTime);
+        if (slotIndex === null) {
+          alert("시간 형식이 잘못되었습니다.");
+          return;
+        }
+        const cell = row.querySelector('td[data-slot-index="' + slotIndex + '"]');
+        if (cell) addPillDot(cell);
+        return;
+      }
+
+      if (!endTime) {
+        alert("끝 시간을 입력해 주세요. (약 복용만 끝 시간 생략 가능)");
+        return;
+      }
+
+      fillRange(row, startTime, endTime, type);
+    });
+  </script>
+</body>
+</html>
