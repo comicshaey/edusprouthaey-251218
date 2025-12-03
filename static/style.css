@@ -36,36 +36,40 @@ a {
 }
 
 /* =============================
-   전역 헤딩 계층 (가장 중요한 부분)
+   전역 헤딩 계층
    ============================= */
 
-/* 페이지 제목: 사이트 전체에서 최우선, 가장 크게 */
+/* 페이지 제목: 사이트 전체에서 최우선 */
 body h1 {
   font-size: 2.2rem;
-  margin: 18px 0 14px;
+  margin: 28px 0 18px;
   text-align: center !important;
   color: #111;
+  font-weight: 700;
 }
 
 /* 큰 섹션 제목 */
 body h2 {
   font-size: 1.6rem;
-  margin: 0 0 12px;
+  margin: 28px 0 12px;
   color: #222;
+  font-weight: 700;
 }
 
 /* 중간 소제목 */
 body h3 {
   font-size: 1.4rem;
-  margin: 0 0 11px;
+  margin: 20px 0 10px;
   color: #222;
+  font-weight: 600;
 }
 
 /* 소단락 제목 */
 body h4 {
   font-size: 1.2rem;
-  margin: 0 0 10px;
+  margin: 16px 0 8px;
   color: #333;
+  font-weight: 600;
 }
 
 /* =============================
@@ -81,6 +85,20 @@ body span {
   color: #333;
 }
 
+body p {
+  margin: 14px 0;
+}
+
+body li {
+  margin: 4px 0;
+  line-height: 1.55;
+}
+
+ul, ol {
+  margin: 12px 0 18px;
+  padding-left: 22px;
+}
+
 body .muted {
   font-size: 0.95rem;
   color: #666;
@@ -88,7 +106,6 @@ body .muted {
 
 /* =============================
    예외 클래스(local-*)
-   상세페이지에서만 특별 적용
    ============================= */
 
 .local-h2 { font-size: 1.3rem !important; }
@@ -133,16 +150,17 @@ main {
 .section {
   border: 1px solid #e5e5e5;
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 20px 22px;
   margin: 18px 0;
   background: #fff;
 }
 
+/* 내부 카드 */
 .card {
   border: 1px solid #e5e5e5;
   border-radius: 10px;
-  padding: 12px 14px;
-  margin: 10px 0;
+  padding: 14px 16px;
+  margin: 14px 0;
   background: #fafafa;
 }
 
@@ -203,7 +221,6 @@ main {
   color: #333;
 }
 
-/* 회색 버튼 */
 .btn-lightgrey {
   padding: 8px 14px;
   border-radius: 10px;
@@ -292,15 +309,22 @@ textarea:disabled {
 
 .numeric { text-align: right; }
 
-/* 구분선 */
+/* =============================
+   구분선(hr)
+   ============================= */
+
 hr {
-  border: none;
   border-top: 1px solid #ddd;
-  margin: 28px 0;
+  margin: 26px 0;
+  opacity: 0.9;
+}
+
+body h2 + hr {
+  margin-top: 10px !important;
 }
 
 /* =============================
-   테이블
+   테이블 스타일
    ============================= */
 
 .table-wrap,
@@ -337,13 +361,11 @@ hr {
   font-weight: 600;
 }
 
-/* 비고 */
 .note {
   margin-top: 8px;
   font-size: 1rem;
   color: #555;
 }
-
 
 /* =============================
    header/footer 레이아웃 통일
