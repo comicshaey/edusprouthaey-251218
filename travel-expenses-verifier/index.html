@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>관내여비 자동 검증기 (CSV · Pyodide)</title>
+  <title>관내여비 자동 검증기 (CSV · 확장검증)</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
@@ -30,7 +30,7 @@
       font-size: 0.95rem;
       white-space: pre-wrap;
       margin-top: 8px;
-      max-height: 220px;
+      max-height: 260px;
       overflow: auto;
     }
     .result-box {
@@ -72,10 +72,10 @@
 
   <header class="site-header">
     <div class="shell">
-      <h1>관내여비 자동 검증기 (CSV · 브라우저 Pyodide)</h1>
+      <h1>관내여비 자동 검증기 (CSV · 확장검증)</h1>
       <p class="sub">
         · 나이스 관내·관외 여비 엑셀을 <strong>CSV(쉼표 구분)</strong>로 저장한 원자료를 업로드하면,<br>
-        · 브라우저 안에서 파이썬(pandas)으로 <strong>관내여비만 자동 필터</strong>해서 월별 요약·이상행·규정 설명까지 생성합니다.
+        · 브라우저 안에서 파이썬(pandas)으로 <strong>관내여비만 자동 필터</strong>하여 단가·중복·시간요건·관외표기·사업비 코드를 함께 점검합니다.
       </p>
     </div>
   </header>
@@ -92,14 +92,14 @@
       </ul>
       <p class="local-small muted">
         ※ 엑셀에서 <strong>“다른 이름으로 저장 → CSV UTF-8(쉼표로 분리)”</strong>로 저장한 파일을 사용하세요.<br>
-        ※ 동일 헤더 구조만 유지되면 연도·월 상관없이 그대로 검증 가능합니다.
+        ※ 추가 플래그(중복/시간요건/관외표기/사업비코드)는 <strong>“의심/참고용”</strong>이며, 규정 위반 확정은 아닙니다.
       </p>
     </section>
 
     <section class="section file-area">
       <h2 class="local-h2">2. CSV 업로드 및 검증 실행</h2>
 
-      <p><span class="badge">관내여비 자동 필터 + 단가 검증 + 규정 설명</span></p>
+      <p><span class="badge">단가 + 중복 + 시간요건 + 관내·관외표기 + 사업비 코드</span></p>
       <p class="local-small muted">
         · 최대 3년치(36개월) CSV를 한 번에 선택해서 업로드해도 됩니다.<br>
         · 오류 발생 시, 아래 로그 박스에 <strong>파이썬 오류코드(traceback)</strong>가 그대로 표시되므로 복사해서 분석할 수 있습니다.
@@ -120,11 +120,17 @@
 
       <div class="result-box">
         <h3 class="local-h3">3-1. 월별 관내여비 요약</h3>
+        <p class="local-small muted">
+          · 단가·중복·시간요건·관내·관외표기·사업비 코드 의심 건수를 함께 표시합니다.
+        </p>
         <textarea id="summaryOutput" readonly></textarea>
       </div>
 
       <div class="result-box">
-        <h3 class="local-h3">3-2. 관내여비 이상행 상세</h3>
+        <h3 class="local-h3">3-2. 관내여비 이상행 상세 (단가 + 추가플래그)</h3>
+        <p class="local-small muted">
+          · 단가 이상행뿐 아니라, 중복/시간요건/관외표기/사업비코드 의심 여부가 각 행마다 표시됩니다.
+        </p>
         <textarea id="detailOutput" readonly></textarea>
       </div>
 
@@ -137,9 +143,9 @@
 
   <footer class="site-footer">
     <div class="shell">
-      <p>관내여비 자동 검증기 (CSV / Pyodide / pandas 기반)</p>
+      <p>관내여비 자동 검증기 (CSV / Pyodide / 확장검증)</p>
       <p class="muted">
-        · 서버 없이 브라우저에서만 동작하는 시범 버전입니다. CSV 구조가 다를 경우 오류가 발생할 수 있습니다.
+        · 서버 없이 브라우저에서만 동작하는 시범 버전입니다. 실제 감사·지급 시에는 여비 규정, 기관 지침, 명령서·출장보고서 등과 함께 최종 판단해야 합니다.
       </p>
     </div>
   </footer>
@@ -171,7 +177,13 @@ FARE_COL        = "여비금액"
 BIZINFO_COL     = "사업정보"
 AMOUNT_COL      = "지급금액"
 
+# 관내 단가
 ALLOWED_AMOUNTS = {10000, 20000}
+
+# 학교 소재지 키워드(관내 판단에 참고) - 필요 시 학교 바뀌면 여기를 수정
+HOME_REGION_KEYWORDS = ["원주", "원주시"]
+# 관외 후보 지역 키워드(예: 시·도 이름)
+OUTER_REGION_HINTS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종"]
 
 def normalize_date_series(s):
     return pd.to_datetime(s, errors="coerce")
@@ -190,27 +202,49 @@ def make_explanation(summary_df):
             max_amt = int(row.최대금액)
             all_ok = bool(row.전건_허용단위금액)
 
+            dup = int(getattr(row, "중복의심_건수", 0))
+            time_sus = int(getattr(row, "시간요건의심_건수", 0))
+            region_sus = int(getattr(row, "관외관내불일치의심_건수", 0))
+            budget_sus = int(getattr(row, "예산코드의심_건수", 0))
+
+            base_line = ""
             if all_ok:
-                lines.append(
+                base_line = (
                     f"{ym}: 관내여비 {cnt}건, 합계 {total:,}원."
                     f" 모든 건이 내부 관내 단가(10,000원/20,000원) 범위 내에서 지급되어,"
-                    " 단가 측면에서는 규정 취지(반일·종일 정액 지급)에 부합하는 것으로 해석할 수 있습니다."
+                    " 단가 측면에서는 규정 취지(반일·종일 정액 여비)에 부합하는 것으로 해석할 수 있습니다."
                 )
             else:
-                lines.append(
-                    f"{ym}: 관내여비 {cnt}건, 합계 {total:,}원 중 이상행 {abnormal}건 존재."
+                base_line = (
+                    f"{ym}: 관내여비 {cnt}건, 합계 {total:,}원 중 단가 이상행 {abnormal}건 존재."
                     f" 최소금액 {min_amt:,}원, 최대금액 {max_amt:,}원으로,"
                     " 관내 단가(10,000원/20,000원)를 벗어나는 금액이 있어 사유 확인이 필요합니다."
-                    " 예를 들어, 교통비·숙박비 등의 다른 여비 항목과 혼합 입력되었는지,"
-                    " 기관 여비지침상 예외조항이나 별도 승인에 따른 금액인지 점검해야 합니다."
                 )
 
+            extra_parts = []
+            if dup > 0:
+                extra_parts.append(f"같은 날 같은 사람 중복 지급 의심 {dup}건")
+            if time_sus > 0:
+                extra_parts.append(f"반일/종일 시간 요건 참고 플래그 {time_sus}건")
+            if region_sus > 0:
+                extra_parts.append(f"관외로 보이는 출장지에 관내단가 적용 의심 {region_sus}건")
+            if budget_sus > 0:
+                extra_parts.append(f"사업정보에 '관내여비' 문구가 없는 건 {budget_sus}건")
+
+            if extra_parts:
+                base_line += " 추가로, " + ", ".join(extra_parts) + "이(가) 있어 개별 건에 대한 사유 확인이 필요합니다."
+
+            lines.append(base_line)
+
     lines.append("")
-    lines.append("[관내출장 여비 관련 규정 취지 요약]")
+    lines.append("[관내출장 여비 관련 규정 취지 요약 및 참고]")
     lines.append("- 관내출장 여비는 통상 반일·종일 단위의 정액 여비로 운영되며, 기관 여비지침에서 단가(예: 10,000원/20,000원)를 정합니다.")
     lines.append("- 동일한 유형의 관내출장에 대해서는 동일 단가를 적용하는 것이 원칙입니다.")
-    lines.append("- 단가와 다른 금액이 지급된 경우, 여비 규정·지침상 예외사유(특례, 타 여비 항목과의 구분, 별도 승인 등)에 해당하는지 증빙과 함께 확인해야 합니다.")
-    lines.append("- 이 도구의 이상행 표시는 '규정 위반 확정'이 아니라, 추가 검토가 필요한 의심 구간을 표시하는 보조지표입니다.")
+    lines.append("- 같은 날 같은 사람에게 여러 건이 지급된 경우, 실질적으로 하나의 출장인지 중복 청구인지 확인해야 합니다.")
+    lines.append("- 반일/종일 구분에 비해 출장 시간이 과도하게 짧거나 긴 경우, 근무·출장 시간 입력 및 명령 내용과의 일치 여부를 점검해야 합니다.")
+    lines.append("- 관내로 입력되었으나 출장지가 다른 시·도로 보이는 경우, 여비 규정상 관내·관외 구분 기준(거리·행정구역 등)에 맞는지 확인이 필요합니다.")
+    lines.append("- 사업정보(예산 코드)에 관내여비 관련 문구가 없을 경우, 예산편성·집행 기준상 해당 예산에서 관내여비를 사용하는 것이 적정한지 검토해야 합니다.")
+    lines.append("- 이 도구가 표시하는 모든 플래그는 '위반 확정'이 아니라, 추가 검토가 필요한 구간을 찾기 위한 보조 지표입니다.")
     return "\\n".join(lines)
 
 def audit_inner_travel_csv(file_list):
@@ -233,43 +267,86 @@ def audit_inner_travel_csv(file_list):
     df_all = pd.concat(frames, ignore_index=True)
 
     required_cols = [
-        DATE_COL, TYPE_COL, NAME_COL, FLAG_COL,
+        DATE_COL, END_DATE_COL, TYPE_COL, NAME_COL, FLAG_COL,
         FARE_COL, AMOUNT_COL
     ]
     missing = [c for c in required_cols if c not in df_all.columns]
     if missing:
         raise ValueError(f"다음 열을 찾을 수 없습니다. CSV 헤더를 확인하세요: {missing}")
 
+    # 관내 필터
     mask_inner = df_all[TYPE_COL].astype(str).str.contains(INNER_KEYWORD, na=False)
     df = df_all[mask_inner].copy()
     if df.empty:
         raise ValueError("출장구분에 '관내'가 포함된 행이 없습니다.")
 
+    # 부지급 = 아니오
     df = df[df[FLAG_COL].astype(str).str.strip() == "아니오"].copy()
     if df.empty:
         raise ValueError("관내 행 중 부지급='아니오' 인 행이 없습니다.")
 
-    df["__날짜"] = normalize_date_series(df[DATE_COL])
-    df["연월"] = df["__날짜"].dt.to_period("M").astype(str)
+    # 날짜·시간
+    df["__시작"] = normalize_date_series(df[DATE_COL])
+    df["__종료"] = normalize_date_series(df[END_DATE_COL])
+    df["연월"] = df["__시작"].dt.to_period("M").astype(str)
+    df["근무일"] = df["__시작"].dt.date
 
+    # 소요시간(시간 단위)
+    delta = (df["__종료"] - df["__시작"])
+    df["소요시간_시간"] = delta.dt.total_seconds() / 3600.0
+
+    # 금액
     raw_amount = pd.to_numeric(df[AMOUNT_COL], errors="coerce")
     raw_fare   = pd.to_numeric(df[FARE_COL], errors="coerce")
     df["__여비금액"] = raw_fare.fillna(0).astype(int)
-
     df["__지급액"] = raw_amount.copy()
     need_fare = df["__지급액"].isna() | (df["__지급액"] == 0)
     df.loc[need_fare, "__지급액"] = df.loc[need_fare, "__여비금액"]
     df["__지급액"] = df["__지급액"].fillna(0).astype(int)
 
+    # 문자열 정리
     df["__성명"] = df[NAME_COL].astype(str).fillna("")
     df["__출장구분"] = df[TYPE_COL].astype(str).fillna("")
     df["__출장지"] = df.get(PLACE_COL, "").astype(str)
     df["__출장목적"] = df.get(PURPOSE_COL, "").astype(str)
+    df["__사업정보"] = df.get(BIZINFO_COL, "").astype(str)
 
+    # ① 단가 허용 여부
     df["허용단위금액여부"] = df["__지급액"].isin(ALLOWED_AMOUNTS)
     df["만원단위여부"] = (df["__지급액"] % 10000 == 0)
     df["이상여부"] = ~df["허용단위금액여부"]
 
+    # ② 같은 날 같은 사람 중복 지급 의심
+    dup_counts = df.groupby(["__성명", "근무일"])["__지급액"].transform("size")
+    df["중복의심여부"] = dup_counts > 1
+
+    # ③ 시간 요건 참고 플래그
+    # 단순 규칙: 관내-종일인데 4시간 미만, 관내-반일인데 2시간 미만, 또는 0 이하
+    t = df["소요시간_시간"].fillna(0)
+    kind = df["__출장구분"]
+    cond_full_short = kind.str.contains("종일", na=False) & (t < 4)
+    cond_half_short = kind.str.contains("반일", na=False) & (t < 2)
+    cond_invalid = t <= 0
+    df["시간요건의심여부"] = cond_full_short | cond_half_short | cond_invalid
+
+    # ④ 관외인데 관내로 들어간 의심 (단순 키워드)
+    place = df["__출장지"]
+    if HOME_REGION_KEYWORDS:
+        home_pattern = "|".join(HOME_REGION_KEYWORDS)
+        is_home = place.str.contains(home_pattern, na=False)
+    else:
+        is_home = False
+    if OUTER_REGION_HINTS:
+        outer_pattern = "|".join(OUTER_REGION_HINTS)
+        outer_hint = place.str.contains(outer_pattern, na=False)
+    else:
+        outer_hint = False
+    df["관외관내불일치의심여부"] = df["__출장구분"].str.contains("관내", na=False) & outer_hint & ~is_home
+
+    # ⑤ 사업정보·예산 코드 의심 (관내여비 문구 여부)
+    df["예산코드의심여부"] = ~df["__사업정보"].str.contains("관내여비", na=False)
+
+    # 월별 요약
     grouped = df.groupby("연월")
     summary = grouped.agg(
         관내여비_총액=("__지급액", "sum"),
@@ -279,18 +356,28 @@ def audit_inner_travel_csv(file_list):
         최소금액=("__지급액", "min"),
         최대금액=("__지급액", "max"),
         파일수=("__파일명", "nunique"),
+        중복의심_건수=("중복의심여부", "sum"),
+        시간요건의심_건수=("시간요건의심여부", "sum"),
+        관외관내불일치의심_건수=("관외관내불일치의심여부", "sum"),
+        예산코드의심_건수=("예산코드의심여부", "sum"),
     ).reset_index()
     summary["전건_허용단위금액"] = summary["지급건수"] == summary["허용단위금액_건수"]
 
-    detail = df[df["이상여부"]].copy()
+    # 상세(단가 이상행 + 추가 플래그 전체)
+    detail = df.copy()
     keep_cols = [
-        "연월", "__날짜", "__성명", "__지급액", "__여비금액",
+        "연월", "근무일", "__시작", "__종료",
+        "__성명", "__지급액", "__여비금액",
         "__출장구분", "__출장지", "__출장목적",
+        "소요시간_시간",
+        "허용단위금액여부", "만원단위여부", "이상여부",
+        "중복의심여부", "시간요건의심여부",
+        "관외관내불일치의심여부", "예산코드의심여부",
         "__파일명", "__시트명",
-        "허용단위금액여부", "만원단위여부",
     ]
     detail = detail[keep_cols].rename(columns={
-        "__날짜": "지급일자",
+        "__시작": "시작일시",
+        "__종료": "종료일시",
         "__성명": "성명",
         "__지급액": "지급액",
         "__여비금액": "여비금액",
@@ -345,7 +432,7 @@ def audit_inner_travel_csv(file_list):
         filePaths.push(safeName);
       }
 
-      logEl.textContent = `CSV ${files.length}개를 FS에 저장 완료. 파이썬으로 관내여비 검증을 실행합니다...`;
+      logEl.textContent = `CSV ${files.length}개를 FS에 저장 완료. 파이썬으로 관내여비 확장 검증을 실행합니다...`;
 
       try {
         const fileListLiteral = JSON.stringify(filePaths);
@@ -369,7 +456,7 @@ except Exception as e:
         explainOutput.value = explanation_text.toString();
 
         logEl.textContent =
-          "검증 완료. 아래 월별 요약, 이상행, 규정 관점 설명을 확인해 주세요. 필요시 복사해서 엑셀·보고서에 붙여넣으면 됩니다.";
+          "검증 완료. 아래 월별 요약, 상세 플래그, 규정 관점 설명을 확인해 주세요. 필요시 복사해서 엑셀·보고서에 붙여넣으면 됩니다.";
       } catch (err) {
         console.error(err);
         const msg = String(err);
