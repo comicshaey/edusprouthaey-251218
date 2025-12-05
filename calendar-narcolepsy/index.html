@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>학년도별 업무 일정 달력 모음</title>
+  <title>병원 방문 일정</title>
   <link rel="icon" href="/static/favicon.ico" />
   <style>
     :root{--black:#111}
@@ -80,12 +80,10 @@
 <body>
   <div class="wrap">
   <main class="container" style="max-width:880px; margin:0 auto; padding:24px 16px;">
-    <h1>학년도별 업무 일정 달력 모음</h1>
+    <h1>병원 방문 일정</h1>
 
     <p class="muted">
-      ·개발자가 쓰기 위해 만든 기능임. 서버 DB 연결 없는 웹사이트라서 다른 접속자들은 못 씀. <br/>
-      ·학년도별 (당해년도 3월 ~ 익년도 2월) 일정 관리용 달력 <br/>
-      ·월간 달력으로 큰 흐름을 보고, 주간 달력으로 세부 일정 관리함. <br/>
+      ·병가 써야하니 학년도별 일정에 맞춰서 달력 편성<br/>
     </p>
 <hr/>
     
@@ -93,17 +91,17 @@
     <div class="card">
       <h2 style="font-size:1.1rem;margin:0 0 8px">월간 달력</h2>
     <p class="muted">
-        ·학년도별 월간 달력. 일요일 시작.
+        ·월간 달력. 일요일 시작.
 
       <hr/>
       </p>
-      <a class="btn" href="/calendar/calendar-monthly-academic.html?start=2025-11&months=04&title=2025학년도">
+      <a class="btn" href="/calendar/calendar-monthly-academic-narcolepsy.html?start=2025-11&months=04&title=2025학년도">
         2025학년도 (4개월)
       </a>
-      <a class="btn" href="/calendar/calendar-monthly-academic.html?start=2026-03&months=12&title=2026학년도">
+      <a class="btn" href="/calendar/calendar-monthly-academic-narcolepsy.html?start=2026-03&months=12&title=2026학년도">
         2026학년도 (12개월)
       </a>
-      <a class="btn" href="/calendar/calendar-monthly-academic.html?start=2027-03&months=12&title=2027학년도">
+      <a class="btn" href="/calendar/calendar-monthly-academic-narcolepsy.html?start=2027-03&months=12&title=2027학년도">
         2027학년도 (12개월)
       </a>
     </div>
@@ -112,7 +110,7 @@
     <div class="card">
       <h2 style="font-size:1.1rem;margin:0 0 8px">주간 달력</h2>
     <p class="muted">
-        ·학년도별 주간 일정. 일요일 시작. <br/>
+        ·주간 달력. 일요일 시작. <br/>
         ·학년도 기간을 주 단위로 끊음. 날짜 누르면 월간-주간 달력 서로 이동함
       </p>
 <hr/>
@@ -121,21 +119,21 @@
       <!-- 2025학년도: 11~2월 잔여 기간 -->
 
       <a class="btn"
-        href="/calendar/calendar-weekly-academic.html?start=2025-11-16&weeks=15&title=2025학년도%20주간%20업무%20일정(11~2월)">
+        href="/calendar/calendar-weekly-academic-narcolepsy.html?start=2025-11-16&weeks=15&title=2025학년도%20주간%20업무%20일정(11~2월)">
         2025학년도 주간 달력 (11~2월)
       </a>
 
 
       <!-- 2026학년도: 3~다음해 2월, 52주 -->
       <a class="btn"
-        href="/calendar/calendar-weekly-academic.html?start=2026-03-01&weeks=52&title=2026학년도%20주간%20업무%20일정(52주)">
+        href="/calendar/calendar-weekly-academic-narcolepsy.html?start=2026-03-01&weeks=52&title=2026학년도%20주간%20업무%20일정(52주)">
         2026학년도 주간 달력 (52주)
       </a>
 
 
       <!-- 2027학년도: 2027-02-28(일)부터 53주 -->
       <a class="btn"
-        href="/calendar/calendar-weekly-academic.html?start=2027-02-28&weeks=53&title=2027학년도%20주간%20업무%20일정(53주)">
+        href="/calendar/calendar-weekly-academic-narcolepsy.html?start=2027-02-28&weeks=53&title=2027학년도%20주간%20업무%20일정(53주)">
         2027학년도 주간 달력 (53주)
       </a>
     </div>
